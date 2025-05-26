@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Multi-Scene Application</title>
+    
+    <!-- Three.js CDN -->
+    <script src="https://unpkg.com/three@0.157.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.157.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://unpkg.com/three@0.157.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Loading Screen -->
+        <div id="loading-screen" class="loading-screen">
+            <div class="loading-spinner"></div>
+            <p>Loading 3D Scene...</p>
+        </div>
+        
+        <!-- Main Container -->
+        <div id="main-container" class="main-container hidden">
+            <!-- 3D Canvas Container -->
+            <div id="canvas-container" class="canvas-container">
+                <!-- Three.js canvas will be inserted here -->
+            </div>
+            
+            <!-- UI Controls -->
+            <div id="ui-controls" class="ui-controls">
+                <div class="control-panel">
+                    <h3>Scene Controls</h3>
+                    
+                    <!-- Scene Selection -->
+                    <div class="control-group">
+                        <label>Current Scene:</label>
+                        <div class="scene-buttons">
+                            <button id="scene1-btn" class="scene-btn active" data-scene="scene1">
+                                Scene 1
+                            </button>
+                            <button id="scene2-btn" class="scene-btn" data-scene="scene2">
+                                Scene 2
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Model Loading -->
+                    <div class="control-group">
+                        <label>Load Model:</label>
+                        <select id="model-selector" class="model-selector">
+                            <option value="">Select a model...</option>
+                            <option value="cube">Sample Cube</option>
+                            <option value="sphere">Sample Sphere</option>
+                        </select>
+                        <button id="load-model-btn" class="load-btn">Load</button>
+                    </div>
+                    
+                    <!-- Camera Controls Info -->
+                    <div class="control-group">
+                        <label>Camera Controls:</label>
+                        <ul class="controls-info">
+                            <li>Left Mouse: Rotate</li>
+                            <li>Right Mouse: Pan</li>
+                            <li>Scroll: Zoom</li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Reset Camera -->
+                    <div class="control-group">
+                        <button id="reset-camera-btn" class="reset-btn">Reset Camera</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Status Bar -->
+            <div id="status-bar" class="status-bar">
+                <span id="fps-counter">FPS: --</span>
+                <span id="scene-info">Scene: scene1</span>
+                <span id="model-count">Models: 0</span>
+            </div>
+        </div>
+        
+        <!-- Error Modal -->
+        <div id="error-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Error</h3>
+                    <button id="close-error-btn" class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p id="error-message">An error occurred.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Scripts -->
+    <script src="core/renderer.js"></script>
+    <script src="core/camera.js"></script>
+    <script src="core/lights.js"></script>
+    <script src="control/orbitControls.js"></script>
+    <script src="models/modelPaths.js"></script>
+    <script src="models/modelLoader.js"></script>
+    <script src="scene/scene1.js"></script>
+    <script src="scene/scene2.js"></script>
+    <script src="scene/sceneManager.js"></script>
+    <script src="index.js"></script>
+</body>
+</html>

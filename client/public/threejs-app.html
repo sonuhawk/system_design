@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D System Design Diagrams</title>
+    
+    <!-- Three.js CDN - Using ES modules -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/"
+        }
+    }
+    </script>
+    
+    <style>
+        /* Three.js Multi-Scene Application Styles */
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        
+        body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: #333;
+          overflow: hidden;
+          height: 100vh;
+          width: 100vw;
+        }
+        
+        .hidden {
+          display: none !important;
+        }
+        
+        .loading-screen {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          z-index: 1000;
+          color: white;
+        }
+        
+        .loading-spinner {
+          width: 50px;
+          height: 50px;
+          border: 4px solid rgba(255, 255, 255, 0.3);
+          border-top: 4px solid #ffffff;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        
+        .main-container {
+          position: relative;
+          width: 100%;
+          height: 100%;
+          display: flex;
+        }
+        
+        .canvas-container {
+          flex: 1;
+          position: relative;
+          background: #000;
+          overflow: hidden;
+        }
+        
+        .canvas-container canvas {
+          display: block;
+          width: 100% !important;
+          height: 100% !important;
+          outline: none;
+        }
+        
+        .ui-controls {
+          position: absolute;
+          top: 20px;
+          right: 20px;
+          width: 280px;
+          z-index: 100;
+        }
+        
+        .control-panel {
+          background: rgba(30, 30, 30, 0.95);
+          border-radius: 12px;
+          padding: 20px;
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .control-panel h3 {
+          color: #ffffff;
+          margin-bottom: 20px;
+          font-size: 18px;
+          font-weight: 600;
+          text-align: center;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+          padding-bottom: 10px;
+        }
+        
+        .control-group {
+          margin-bottom: 20px;
+        }
+        
+        .control-group label {
+          display: block;
+          color: #cccccc;
+          font-size: 14px;
+          font-weight: 500;
+          margin-bottom: 8px;
+        }
+        
+        .scene-buttons {
+          display: flex;
+          gap: 8px;
+        }
+        
+        .scene-btn {
+          flex: 1;
+          padding: 10px 16px;
+          background: rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 8px;
+          color: #ffffff;
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+        
+        .scene-btn:hover {
+          background: rgba(255, 255, 255, 0.2);
+          border-color: rgba(255, 255, 255, 0.4);
+          transform: translateY(-2px);
+        }
+        
+        .scene-btn.active {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border-color: #667eea;
+          box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .model-selector {
+          width: 100%;
+          padding: 10px 12px;
+          background: rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 8px;
+          color: #ffffff;
+          font-size: 14px;
+          margin-bottom: 10px;
+          outline: none;
+          transition: all 0.3s ease;
+        }
+        
+        .model-selector option {
+          background: #2a2a2a;
+          color: #ffffff;
+        }
+        
+        .load-btn,
+        .reset-btn {
+          width: 100%;
+          padding: 12px 16px;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border: none;
+          border-radius: 8px;
+          color: #ffffff;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+        
+        .load-btn:hover,
+        .reset-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .controls-info {
+          list-style: none;
+          color: #aaaaaa;
+          font-size: 13px;
+          line-height: 1.6;
+        }
+        
+        .controls-info li {
+          margin-bottom: 4px;
+          padding-left: 12px;
+          position: relative;
+        }
+        
+        .controls-info li::before {
+          content: "•";
+          color: #667eea;
+          position: absolute;
+          left: 0;
+        }
+        
+        .status-bar {
+          position: absolute;
+          bottom: 20px;
+          left: 20px;
+          right: 300px;
+          height: 50px;
+          background: rgba(30, 30, 30, 0.95);
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          padding: 0 20px;
+          gap: 30px;
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          z-index: 100;
+        }
+        
+        .status-bar span {
+          color: #ffffff;
+          font-size: 14px;
+          font-weight: 500;
+          padding: 6px 12px;
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 6px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .modal {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.7);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 2000;
+          backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+          background: #2a2a2a;
+          border-radius: 12px;
+          max-width: 500px;
+          width: 90%;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 20px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .modal-header h3 {
+          color: #ffffff;
+          font-size: 18px;
+          font-weight: 600;
+          margin: 0;
+        }
+        
+        .close-btn {
+          background: none;
+          border: none;
+          color: #cccccc;
+          font-size: 24px;
+          cursor: pointer;
+          width: 30px;
+          height: 30px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.3s ease;
+        }
+        
+        .modal-body {
+          padding: 20px;
+        }
+        
+        .modal-body p {
+          color: #cccccc;
+          font-size: 16px;
+          line-height: 1.6;
+          margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Loading Screen -->
+        <div id="loading-screen" class="loading-screen">
+            <div class="loading-spinner"></div>
+            <p>Loading 3D Scene...</p>
+        </div>
+        
+        <!-- Main Container -->
+        <div id="main-container" class="main-container hidden">
+            <!-- 3D Canvas Container -->
+            <div id="canvas-container" class="canvas-container">
+                <!-- Three.js canvas will be inserted here -->
+            </div>
+            
+            <!-- UI Controls -->
+            <div id="ui-controls" class="ui-controls">
+                <div class="control-panel">
+                    <h3>System Diagrams</h3>
+                    
+                    <!-- Diagram Selection -->
+                    <div class="control-group">
+                        <label>Current Diagram:</label>
+                        <div class="scene-buttons">
+                            <button id="microservices-btn" class="scene-btn active" data-diagram="microservices">
+                                Microservices
+                            </button>
+                            <button id="cloud-btn" class="scene-btn" data-diagram="cloud">
+                                Cloud Architecture
+                            </button>
+                            <button id="database-btn" class="scene-btn" data-diagram="database">
+                                Database Design
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Shape/Component Adding -->
+                    <div class="control-group">
+                        <label>Add Shape/Component:</label>
+                        <select id="shape-selector" class="model-selector">
+                            <option value="">Select shape...</option>
+                            <option value="box">Box (Generic Component)</option>
+                            <option value="server">Server</option>
+                            <option value="database">Database</option>
+                            <option value="loadbalancer">Load Balancer</option>
+                            <option value="cache">Cache</option>
+                            <option value="queue">Message Queue</option>
+                            <option value="cdn">CDN</option>
+                            <option value="circle">Circle (Node)</option>
+                        </select>
+                        <button id="add-shape-btn" class="load-btn">Add Shape</button>
+                    </div>
+                    
+                    <!-- Connection Mode -->
+                    <div class="control-group">
+                        <label>Connection Mode:</label>
+                        <button id="connect-mode-btn" class="reset-btn">Connect Components</button>
+                        <button id="move-mode-btn" class="load-btn">Move Mode</button>
+                    </div>
+                    
+                    <!-- Shape Controls -->
+                    <div class="control-group">
+                        <label>Selected Shape:</label>
+                        <div id="shape-info" style="color: #aaa; font-size: 12px; margin-bottom: 8px;">None selected</div>
+                        <button id="delete-shape-btn" class="reset-btn">Delete Selected</button>
+                    </div>
+                    
+                    <!-- Camera Controls Info -->
+                    <div class="control-group">
+                        <label>Camera Controls:</label>
+                        <ul class="controls-info">
+                            <li>Left Mouse: Rotate</li>
+                            <li>Right Mouse: Pan</li>
+                            <li>Scroll: Zoom</li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Reset Camera -->
+                    <div class="control-group">
+                        <button id="reset-camera-btn" class="reset-btn">Reset Camera</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Status Bar -->
+            <div id="status-bar" class="status-bar">
+                <span id="fps-counter">FPS: --</span>
+                <span id="scene-info">Scene: scene1</span>
+                <span id="model-count">Models: 0</span>
+            </div>
+        </div>
+        
+        <!-- Error Modal -->
+        <div id="error-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Error</h3>
+                    <button id="close-error-btn" class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p id="error-message">An error occurred.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // Main 3D System Design Application
+        class SystemDesignApp {
+            constructor() {
+                this.isInitialized = false;
+                this.isRunning = false;
+                this.lastTime = 0;
+                this.frameCount = 0;
+                this.fpsUpdateTime = 0;
+                
+                this.renderer = null;
+                this.camera = null;
+                this.scene = null;
+                this.controls = null;
+                this.raycaster = new THREE.Raycaster();
+                this.mouse = new THREE.Vector2();
+                
+                // Interaction states
+                this.selectedObject = null;
+                this.isConnectMode = false;
+                this.isDragging = false;
+                this.dragPlane = new THREE.Plane();
+                this.dragOffset = new THREE.Vector3();
+                this.connectionStart = null;
+                
+                // Object collections
+                this.shapes = [];
+                this.connections = [];
+                this.shapeCounter = 0;
+                
+                this.animate = this.animate.bind(this);
+                this.onMouseDown = this.onMouseDown.bind(this);
+                this.onMouseMove = this.onMouseMove.bind(this);
+                this.onMouseUp = this.onMouseUp.bind(this);
+            }
+            
+            async init() {
+                try {
+                    console.log('Initializing 3D System Design Application...');
+                    
+                    const canvasContainer = document.getElementById('canvas-container');
+                    
+                    // Create renderer
+                    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                    this.renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+                    this.renderer.setClearColor(0x1a1a1a, 1.0);
+                    this.renderer.shadowMap.enabled = true;
+                    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                    canvasContainer.appendChild(this.renderer.domElement);
+                    
+                    // Create camera
+                    this.camera = new THREE.PerspectiveCamera(
+                        75,
+                        canvasContainer.clientWidth / canvasContainer.clientHeight,
+                        0.1,
+                        1000
+                    );
+                    this.camera.position.set(0, 10, 15);
+                    
+                    // Create scene
+                    this.scene = new THREE.Scene();
+                    this.scene.background = new THREE.Color(0x2c3e50);
+                    
+                    // Add lighting
+                    this.setupLighting();
+                    
+                    // Create ground grid
+                    this.createGrid();
+                    
+                    // Create controls
+                    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+                    this.controls.enableDamping = true;
+                    this.controls.dampingFactor = 0.05;
+                    
+                    // Setup event listeners
+                    this.setupEventListeners();
+                    
+                    // Start
+                    this.start();
+                    
+                    console.log('3D System Design Application initialized successfully');
+                    this.isInitialized = true;
+                    
+                } catch (error) {
+                    console.error('Failed to initialize application:', error);
+                }
+            }
+            
+            setupLighting() {
+                // Ambient light
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+                this.scene.add(ambientLight);
+                
+                // Directional light
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+                directionalLight.position.set(10, 20, 10);
+                directionalLight.castShadow = true;
+                directionalLight.shadow.mapSize.width = 2048;
+                directionalLight.shadow.mapSize.height = 2048;
+                directionalLight.shadow.camera.near = 0.5;
+                directionalLight.shadow.camera.far = 50;
+                directionalLight.shadow.camera.left = -20;
+                directionalLight.shadow.camera.right = 20;
+                directionalLight.shadow.camera.top = 20;
+                directionalLight.shadow.camera.bottom = -20;
+                this.scene.add(directionalLight);
+                
+                // Point light for accent
+                const pointLight = new THREE.PointLight(0x4a90e2, 0.5, 30);
+                pointLight.position.set(5, 10, 5);
+                this.scene.add(pointLight);
+            }
+            
+            createGrid() {
+                const gridHelper = new THREE.GridHelper(50, 50, 0x888888, 0x444444);
+                gridHelper.position.y = 0;
+                this.scene.add(gridHelper);
+                
+                // Add coordinate axes
+                const axesHelper = new THREE.AxesHelper(5);
+                this.scene.add(axesHelper);
+            }
+            
+            // Create different types of shapes
+            createBox(name = 'Box', position = { x: 0, y: 1, z: 0 }) {
+                const group = new THREE.Group();
+                group.name = name;
+                group.userData = { 
+                    type: 'box', 
+                    id: ++this.shapeCounter, 
+                    isShape: true,
+                    originalColor: 0x4a90e2
+                };
+
+                const geometry = new THREE.BoxGeometry(2, 2, 2);
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: 0x4a90e2,
+                    shininess: 30
+                });
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                group.add(mesh);
+
+                // Add text label
+                this.addTextLabel(group, name, { x: 0, y: -1.5, z: 0 });
+
+                group.position.set(position.x, position.y, position.z);
+                return group;
+            }
+            
+            createCircle(name = 'Circle', position = { x: 0, y: 1, z: 0 }) {
+                const group = new THREE.Group();
+                group.name = name;
+                group.userData = { 
+                    type: 'circle', 
+                    id: ++this.shapeCounter, 
+                    isShape: true,
+                    originalColor: 0xe74c3c
+                };
+
+                const geometry = new THREE.CylinderGeometry(1, 1, 0.2, 16);
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: 0xe74c3c,
+                    shininess: 30
+                });
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                group.add(mesh);
+
+                // Add text label
+                this.addTextLabel(group, name, { x: 0, y: -1.5, z: 0 });
+
+                group.position.set(position.x, position.y, position.z);
+                return group;
+            }
+            
+            createServer(name = 'Server', position = { x: 0, y: 1, z: 0 }) {
+                const group = new THREE.Group();
+                group.name = name;
+                group.userData = { 
+                    type: 'server', 
+                    id: ++this.shapeCounter, 
+                    isShape: true,
+                    originalColor: 0x3498db
+                };
+
+                // Main server body
+                const serverGeometry = new THREE.BoxGeometry(2, 3, 1);
+                const serverMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x3498db,
+                    shininess: 30
+                });
+                const serverMesh = new THREE.Mesh(serverGeometry, serverMaterial);
+                serverMesh.castShadow = true;
+                serverMesh.receiveShadow = true;
+                group.add(serverMesh);
+
+                // Front panel
+                const panelGeometry = new THREE.PlaneGeometry(1.8, 2.8);
+                const panelMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x2c3e50,
+                    side: THREE.DoubleSide
+                });
+                const panel = new THREE.Mesh(panelGeometry, panelMaterial);
+                panel.position.z = 0.51;
+                group.add(panel);
+
+                // LED indicators
+                for (let i = 0; i < 4; i++) {
+                    const ledGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+                    const ledMaterial = new THREE.MeshPhongMaterial({ 
+                        color: Math.random() > 0.5 ? 0x00ff00 : 0xff0000,
+                        emissive: Math.random() > 0.5 ? 0x002200 : 0x220000
+                    });
+                    const led = new THREE.Mesh(ledGeometry, ledMaterial);
+                    led.position.set(-0.7 + (i * 0.3), 1, 0.52);
+                    group.add(led);
+                }
+
+                this.addTextLabel(group, name, { x: 0, y: -2, z: 0 });
+                group.position.set(position.x, position.y, position.z);
+                return group;
+            }
+            
+            createDatabase(name = 'Database', position = { x: 0, y: 1, z: 0 }) {
+                const group = new THREE.Group();
+                group.name = name;
+                group.userData = { 
+                    type: 'database', 
+                    id: ++this.shapeCounter, 
+                    isShape: true,
+                    originalColor: 0xe74c3c
+                };
+
+                // Database cylinder
+                const dbGeometry = new THREE.CylinderGeometry(1, 1, 2, 16);
+                const dbMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xe74c3c,
+                    shininess: 30
+                });
+                const dbMesh = new THREE.Mesh(dbGeometry, dbMaterial);
+                dbMesh.castShadow = true;
+                dbMesh.receiveShadow = true;
+                group.add(dbMesh);
+
+                // Database disk layers
+                for (let i = 0; i < 3; i++) {
+                    const diskGeometry = new THREE.CylinderGeometry(1.1, 1.1, 0.1, 16);
+                    const diskMaterial = new THREE.MeshPhongMaterial({ 
+                        color: 0xc0392b
+                    });
+                    const disk = new THREE.Mesh(diskGeometry, diskMaterial);
+                    disk.position.y = -0.7 + (i * 0.7);
+                    group.add(disk);
+                }
+
+                this.addTextLabel(group, name, { x: 0, y: -2, z: 0 });
+                group.position.set(position.x, position.y, position.z);
+                return group;
+            }
+            
+            createLoadBalancer(name = 'Load Balancer', position = { x: 0, y: 1, z: 0 }) {
+                const group = new THREE.Group();
+                group.name = name;
+                group.userData = { 
+                    type: 'loadbalancer', 
+                    id: ++this.shapeCounter, 
+                    isShape: true,
+                    originalColor: 0xf39c12
+                };
+
+                const lbGeometry = new THREE.CylinderGeometry(1.5, 1.5, 1, 6);
+                const lbMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xf39c12,
+                    shininess: 30
+                });
+                const lbMesh = new THREE.Mesh(lbGeometry, lbMaterial);
+                lbMesh.castShadow = true;
+                lbMesh.receiveShadow = true;
+                group.add(lbMesh);
+
+                // Connection ports
+                for (let i = 0; i < 6; i++) {
+                    const angle = (i / 6) * Math.PI * 2;
+                    const portGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+                    const portMaterial = new THREE.MeshPhongMaterial({ 
+                        color: 0x27ae60,
+                        emissive: 0x002200
+                    });
+                    const port = new THREE.Mesh(portGeometry, portMaterial);
+                    port.position.set(
+                        Math.cos(angle) * 1.6,
+                        0,
+                        Math.sin(angle) * 1.6
+                    );
+                    group.add(port);
+                }
+
+                this.addTextLabel(group, name, { x: 0, y: -2, z: 0 });
+                group.position.set(position.x, position.y, position.z);
+                return group;
+            }
+            
+            createCache(name = 'Cache', position = { x: 0, y: 1, z: 0 }) {
+                const group = new THREE.Group();
+                group.name = name;
+                group.userData = { 
+                    type: 'cache', 
+                    id: ++this.shapeCounter, 
+                    isShape: true,
+                    originalColor: 0x9b59b6
+                };
+
+                const cacheGeometry = new THREE.OctahedronGeometry(1.2);
+                const cacheMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x9b59b6,
+                    shininess: 50,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const cacheMesh = new THREE.Mesh(cacheGeometry, cacheMaterial);
+                cacheMesh.castShadow = true;
+                cacheMesh.receiveShadow = true;
+                group.add(cacheMesh);
+
+                this.addTextLabel(group, name, { x: 0, y: -2, z: 0 });
+                group.position.set(position.x, position.y, position.z);
+                return group;
+            }
+            
+            createQueue(name = 'Queue', position = { x: 0, y: 1, z: 0 }) {
+                const group = new THREE.Group();
+                group.name = name;
+                group.userData = { 
+                    type: 'queue', 
+                    id: ++this.shapeCounter, 
+                    isShape: true,
+                    originalColor: 0x1abc9c
+                };
+
+                const queueGeometry = new THREE.BoxGeometry(3, 0.8, 0.8);
+                const queueMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x1abc9c,
+                    shininess: 30
+                });
+                const queueMesh = new THREE.Mesh(queueGeometry, queueMaterial);
+                queueMesh.castShadow = true;
+                queueMesh.receiveShadow = true;
+                group.add(queueMesh);
+
+                // Message segments
+                for (let i = 0; i < 5; i++) {
+                    const segGeometry = new THREE.BoxGeometry(0.4, 0.6, 0.6);
+                    const segMaterial = new THREE.MeshPhongMaterial({ 
+                        color: 0x16a085
+                    });
+                    const segment = new THREE.Mesh(segGeometry, segMaterial);
+                    segment.position.x = -1.2 + (i * 0.6);
+                    group.add(segment);
+                }
+
+                this.addTextLabel(group, name, { x: 0, y: -2, z: 0 });
+                group.position.set(position.x, position.y, position.z);
+                return group;
+            }
+            
+            createCDN(name = 'CDN', position = { x: 0, y: 1, z: 0 }) {
+                const group = new THREE.Group();
+                group.name = name;
+                group.userData = { 
+                    type: 'cdn', 
+                    id: ++this.shapeCounter, 
+                    isShape: true,
+                    originalColor: 0xff6b35
+                };
+
+                const cdnGeometry = new THREE.SphereGeometry(1, 12, 12);
+                const cdnMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xff6b35,
+                    shininess: 30
+                });
+                const cdnMesh = new THREE.Mesh(cdnGeometry, cdnMaterial);
+                cdnMesh.castShadow = true;
+                cdnMesh.receiveShadow = true;
+                group.add(cdnMesh);
+
+                // Edge nodes
+                for (let i = 0; i < 8; i++) {
+                    const angle1 = (i / 8) * Math.PI * 2;
+                    const angle2 = (i / 4) * Math.PI;
+                    
+                    const edgeGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+                    const edgeMaterial = new THREE.MeshPhongMaterial({ 
+                        color: 0xd35400
+                    });
+                    const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
+                    edge.position.set(
+                        Math.cos(angle1) * Math.sin(angle2) * 2,
+                        Math.cos(angle2) * 1.5,
+                        Math.sin(angle1) * Math.sin(angle2) * 2
+                    );
+                    group.add(edge);
+                }
+
+                this.addTextLabel(group, name, { x: 0, y: -2.5, z: 0 });
+                group.position.set(position.x, position.y, position.z);
+                return group;
+            }
+            
+            addTextLabel(group, text, position) {
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = 256;
+                canvas.height = 64;
+                
+                context.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                
+                context.fillStyle = 'white';
+                context.font = '20px Arial';
+                context.textAlign = 'center';
+                context.fillText(text, canvas.width / 2, canvas.height / 2 + 7);
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                const material = new THREE.MeshBasicMaterial({ 
+                    map: texture, 
+                    transparent: true,
+                    side: THREE.DoubleSide
+                });
+                const geometry = new THREE.PlaneGeometry(2, 0.5);
+                const textMesh = new THREE.Mesh(geometry, material);
+                
+                textMesh.position.set(position.x, position.y, position.z);
+                textMesh.userData = { isLabel: true };
+                group.add(textMesh);
+            }
+            
+            // Create arrow connection between two shapes
+            createConnection(shape1, shape2, color = 0x00ff00) {
+                const pos1 = shape1.position;
+                const pos2 = shape2.position;
+                
+                // Create arrow geometry
+                const direction = new THREE.Vector3().subVectors(pos2, pos1);
+                const length = direction.length();
+                direction.normalize();
+                
+                const arrowGeometry = new THREE.CylinderGeometry(0.05, 0.05, length * 0.8, 8);
+                const arrowMaterial = new THREE.MeshPhongMaterial({ color: color });
+                const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+                
+                // Position and orient the arrow
+                const midpoint = new THREE.Vector3().addVectors(pos1, pos2).multiplyScalar(0.5);
+                arrow.position.copy(midpoint);
+                arrow.lookAt(pos2);
+                arrow.rotateX(Math.PI / 2);
+                
+                // Arrow head
+                const headGeometry = new THREE.ConeGeometry(0.15, 0.3, 8);
+                const headMaterial = new THREE.MeshPhongMaterial({ color: color });
+                const arrowHead = new THREE.Mesh(headGeometry, headMaterial);
+                
+                const headPosition = new THREE.Vector3().copy(pos2).sub(direction.clone().multiplyScalar(0.3));
+                arrowHead.position.copy(headPosition);
+                arrowHead.lookAt(pos2);
+                arrowHead.rotateX(-Math.PI / 2);
+                
+                const connectionGroup = new THREE.Group();
+                connectionGroup.add(arrow);
+                connectionGroup.add(arrowHead);
+                connectionGroup.userData = {
+                    type: 'connection',
+                    from: shape1.userData.id,
+                    to: shape2.userData.id,
+                    isConnection: true
+                };
+                
+                return connectionGroup;
+            }
+            
+            // Mouse interaction methods
+            setupEventListeners() {
+                // UI button listeners
+                document.getElementById('add-shape-btn').addEventListener('click', () => {
+                    this.addShape();
+                });
+                
+                document.getElementById('connect-mode-btn').addEventListener('click', () => {
+                    this.toggleConnectMode();
+                });
+                
+                document.getElementById('move-mode-btn').addEventListener('click', () => {
+                    this.setMoveMode();
+                });
+                
+                document.getElementById('delete-shape-btn').addEventListener('click', () => {
+                    this.deleteSelected();
+                });
+                
+                document.getElementById('reset-camera-btn').addEventListener('click', () => {
+                    this.resetCamera();
+                });
+                
+                // Diagram template listeners
+                document.getElementById('microservices-btn').addEventListener('click', () => {
+                    this.loadTemplate('microservices');
+                });
+                
+                document.getElementById('cloud-btn').addEventListener('click', () => {
+                    this.loadTemplate('cloud');
+                });
+                
+                document.getElementById('database-btn').addEventListener('click', () => {
+                    this.loadTemplate('database');
+                });
+                
+                // Mouse listeners for 3D interaction
+                this.renderer.domElement.addEventListener('mousedown', this.onMouseDown);
+                this.renderer.domElement.addEventListener('mousemove', this.onMouseMove);
+                this.renderer.domElement.addEventListener('mouseup', this.onMouseUp);
+                
+                // Window resize
+                window.addEventListener('resize', () => {
+                    this.onWindowResize();
+                });
+            }
+            
+            onMouseDown(event) {
+                event.preventDefault();
+                
+                this.mouse.x = (event.clientX / this.renderer.domElement.clientWidth) * 2 - 1;
+                this.mouse.y = -(event.clientY / this.renderer.domElement.clientHeight) * 2 + 1;
+                
+                this.raycaster.setFromCamera(this.mouse, this.camera);
+                const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+                
+                if (intersects.length > 0) {
+                    const intersectedObject = this.getShapeFromIntersection(intersects[0]);
+                    
+                    if (intersectedObject && intersectedObject.userData.isShape) {
+                        if (this.isConnectMode) {
+                            this.handleConnectionClick(intersectedObject);
+                        } else {
+                            this.selectObject(intersectedObject);
+                            this.startDragging(intersectedObject, intersects[0].point);
+                        }
+                    }
+                } else {
+                    this.deselectObject();
+                }
+            }
+            
+            onMouseMove(event) {
+                event.preventDefault();
+                
+                if (this.isDragging && this.selectedObject) {
+                    this.mouse.x = (event.clientX / this.renderer.domElement.clientWidth) * 2 - 1;
+                    this.mouse.y = -(event.clientY / this.renderer.domElement.clientHeight) * 2 + 1;
+                    
+                    this.raycaster.setFromCamera(this.mouse, this.camera);
+                    
+                    const intersectPoint = new THREE.Vector3();
+                    this.raycaster.ray.intersectPlane(this.dragPlane, intersectPoint);
+                    
+                    this.selectedObject.position.copy(intersectPoint.sub(this.dragOffset));
+                    this.updateConnections(this.selectedObject);
+                }
+            }
+            
+            onMouseUp(event) {
+                event.preventDefault();
+                this.isDragging = false;
+            }
+            
+            getShapeFromIntersection(intersection) {
+                let object = intersection.object;
+                while (object && !object.userData.isShape) {
+                    object = object.parent;
+                }
+                return object;
+            }
+            
+            selectObject(object) {
+                this.deselectObject();
+                this.selectedObject = object;
+                
+                // Highlight selected object
+                this.highlightObject(object, true);
+                
+                // Update UI
+                document.getElementById('shape-info').textContent = 
+                    `${object.name} (${object.userData.type}) - ID: ${object.userData.id}`;
+            }
+            
+            deselectObject() {
+                if (this.selectedObject) {
+                    this.highlightObject(this.selectedObject, false);
+                    this.selectedObject = null;
+                }
+                document.getElementById('shape-info').textContent = 'None selected';
+            }
+            
+            highlightObject(object, highlight) {
+                object.traverse((child) => {
+                    if (child.isMesh && !child.userData.isLabel) {
+                        if (highlight) {
+                            child.material.emissive.setHex(0x333333);
+                        } else {
+                            child.material.emissive.setHex(0x000000);
+                        }
+                    }
+                });
+            }
+            
+            startDragging(object, intersectionPoint) {
+                this.isDragging = true;
+                this.dragPlane.setFromNormalAndCoplanarPoint(
+                    this.camera.getWorldDirection(new THREE.Vector3()),
+                    intersectionPoint
+                );
+                this.dragOffset.copy(intersectionPoint).sub(object.position);
+            }
+            
+            handleConnectionClick(object) {
+                if (!this.connectionStart) {
+                    this.connectionStart = object;
+                    this.highlightObject(object, true);
+                    console.log(`Connection start: ${object.name}`);
+                } else if (this.connectionStart !== object) {
+                    // Create connection
+                    const connection = this.createConnection(this.connectionStart, object);
+                    this.scene.add(connection);
+                    this.connections.push(connection);
+                    
+                    this.highlightObject(this.connectionStart, false);
+                    this.connectionStart = null;
+                    
+                    console.log(`Connected ${this.connectionStart?.name} to ${object.name}`);
+                } else {
+                    // Cancel connection
+                    this.highlightObject(this.connectionStart, false);
+                    this.connectionStart = null;
+                    console.log('Connection cancelled');
+                }
+            }
+            
+            updateConnections(movedObject) {
+                this.connections.forEach(connection => {
+                    if (connection.userData.from === movedObject.userData.id || 
+                        connection.userData.to === movedObject.userData.id) {
+                        
+                        const fromShape = this.shapes.find(s => s.userData.id === connection.userData.from);
+                        const toShape = this.shapes.find(s => s.userData.id === connection.userData.to);
+                        
+                        if (fromShape && toShape) {
+                            this.scene.remove(connection);
+                            const newConnection = this.createConnection(fromShape, toShape);
+                            newConnection.userData = connection.userData;
+                            this.scene.add(newConnection);
+                            
+                            const index = this.connections.indexOf(connection);
+                            this.connections[index] = newConnection;
+                        }
+                    }
+                });
+            }
+            
+            // UI Action methods
+            addShape() {
+                console.log('Add Shape button clicked!');
+                const shapeType = document.getElementById('shape-selector').value;
+                console.log('Selected shape type:', shapeType);
+                
+                if (!shapeType) {
+                    console.log('No shape type selected');
+                    return;
+                }
+                
+                // Generate random position
+                const position = {
+                    x: (Math.random() - 0.5) * 10,
+                    y: 1,
+                    z: (Math.random() - 0.5) * 10
+                };
+                
+                let shape;
+                const name = `${shapeType}_${this.shapeCounter + 1}`;
+                console.log('Creating shape:', name, 'at position:', position);
+                
+                switch (shapeType) {
+                    case 'box':
+                        shape = this.createBox(name, position);
+                        break;
+                    case 'circle':
+                        shape = this.createCircle(name, position);
+                        break;
+                    case 'server':
+                        shape = this.createServer(name, position);
+                        break;
+                    case 'database':
+                        shape = this.createDatabase(name, position);
+                        break;
+                    case 'loadbalancer':
+                        shape = this.createLoadBalancer(name, position);
+                        break;
+                    case 'cache':
+                        shape = this.createCache(name, position);
+                        break;
+                    case 'queue':
+                        shape = this.createQueue(name, position);
+                        break;
+                    case 'cdn':
+                        shape = this.createCDN(name, position);
+                        break;
+                    default:
+                        console.warn(`Unknown shape type: ${shapeType}`);
+                        return;
+                }
+                
+                if (shape) {
+                    console.log('Shape created successfully, adding to scene');
+                    this.scene.add(shape);
+                    this.shapes.push(shape);
+                    this.updateShapeCount();
+                    console.log('Total shapes:', this.shapes.length);
+                    
+                    // Reset selector
+                    document.getElementById('shape-selector').value = '';
+                } else {
+                    console.error('Failed to create shape');
+                }
+            }
+            
+            toggleConnectMode() {
+                this.isConnectMode = !this.isConnectMode;
+                const btn = document.getElementById('connect-mode-btn');
+                
+                if (this.isConnectMode) {
+                    btn.textContent = 'Exit Connect Mode';
+                    btn.style.background = 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)';
+                    this.controls.enabled = false;
+                } else {
+                    btn.textContent = 'Connect Components';
+                    btn.style.background = '';
+                    this.controls.enabled = true;
+                    if (this.connectionStart) {
+                        this.highlightObject(this.connectionStart, false);
+                        this.connectionStart = null;
+                    }
+                }
+            }
+            
+            setMoveMode() {
+                this.isConnectMode = false;
+                this.controls.enabled = true;
+                
+                const connectBtn = document.getElementById('connect-mode-btn');
+                connectBtn.textContent = 'Connect Components';
+                connectBtn.style.background = '';
+                
+                if (this.connectionStart) {
+                    this.highlightObject(this.connectionStart, false);
+                    this.connectionStart = null;
+                }
+            }
+            
+            deleteSelected() {
+                if (!this.selectedObject) return;
+                
+                // Remove from scene
+                this.scene.remove(this.selectedObject);
+                
+                // Remove from shapes array
+                const shapeIndex = this.shapes.indexOf(this.selectedObject);
+                if (shapeIndex > -1) {
+                    this.shapes.splice(shapeIndex, 1);
+                }
+                
+                // Remove associated connections
+                const connectionsToRemove = this.connections.filter(conn => 
+                    conn.userData.from === this.selectedObject.userData.id ||
+                    conn.userData.to === this.selectedObject.userData.id
+                );
+                
+                connectionsToRemove.forEach(conn => {
+                    this.scene.remove(conn);
+                    const index = this.connections.indexOf(conn);
+                    if (index > -1) {
+                        this.connections.splice(index, 1);
+                    }
+                });
+                
+                this.selectedObject = null;
+                this.updateShapeCount();
+                document.getElementById('shape-info').textContent = 'None selected';
+            }
+            
+            resetCamera() {
+                this.camera.position.set(0, 10, 15);
+                this.controls.target.set(0, 0, 0);
+                this.controls.update();
+            }
+            
+            loadTemplate(templateType) {
+                // Clear current scene
+                this.clearScene();
+                
+                // Update active button
+                document.querySelectorAll('.scene-btn').forEach(btn => btn.classList.remove('active'));
+                document.getElementById(`${templateType}-btn`).classList.add('active');
+                
+                // Load predefined templates
+                this.createTemplateShapes(templateType);
+                
+                document.getElementById('scene-info').textContent = `Diagram: ${templateType}`;
+            }
+            
+            createTemplateShapes(templateType) {
+                if (templateType === 'microservices') {
+                    // API Gateway
+                    const apiGateway = this.createLoadBalancer('API Gateway', { x: 0, y: 1, z: 0 });
+                    this.scene.add(apiGateway);
+                    this.shapes.push(apiGateway);
+                    
+                    // Microservices
+                    const userService = this.createServer('User Service', { x: -6, y: 1, z: -4 });
+                    const orderService = this.createServer('Order Service', { x: 0, y: 1, z: -4 });
+                    const paymentService = this.createServer('Payment Service', { x: 6, y: 1, z: -4 });
+                    
+                    [userService, orderService, paymentService].forEach(service => {
+                        this.scene.add(service);
+                        this.shapes.push(service);
+                    });
+                    
+                    // Databases
+                    const userDB = this.createDatabase('User DB', { x: -6, y: 1, z: -8 });
+                    const orderDB = this.createDatabase('Order DB', { x: 0, y: 1, z: -8 });
+                    const paymentDB = this.createDatabase('Payment DB', { x: 6, y: 1, z: -8 });
+                    
+                    [userDB, orderDB, paymentDB].forEach(db => {
+                        this.scene.add(db);
+                        this.shapes.push(db);
+                    });
+                    
+                    // Create connections
+                    [userService, orderService, paymentService].forEach(service => {
+                        const connection = this.createConnection(apiGateway, service, 0x00ff00);
+                        this.scene.add(connection);
+                        this.connections.push(connection);
+                    });
+                    
+                    // Connect services to databases
+                    const serviceDbPairs = [
+                        [userService, userDB],
+                        [orderService, orderDB],
+                        [paymentService, paymentDB]
+                    ];
+                    
+                    serviceDbPairs.forEach(([service, db]) => {
+                        const connection = this.createConnection(service, db, 0xff0000);
+                        this.scene.add(connection);
+                        this.connections.push(connection);
+                    });
+                    
+                } else if (templateType === 'cloud') {
+                    // Load Balancer
+                    const loadBalancer = this.createLoadBalancer('ALB', { x: 0, y: 1, z: 0 });
+                    this.scene.add(loadBalancer);
+                    this.shapes.push(loadBalancer);
+                    
+                    // Web Servers
+                    const webServer1 = this.createServer('Web Server 1', { x: -4, y: 1, z: -4 });
+                    const webServer2 = this.createServer('Web Server 2', { x: 0, y: 1, z: -4 });
+                    const webServer3 = this.createServer('Web Server 3', { x: 4, y: 1, z: -4 });
+                    
+                    [webServer1, webServer2, webServer3].forEach(server => {
+                        this.scene.add(server);
+                        this.shapes.push(server);
+                        
+                        const connection = this.createConnection(loadBalancer, server, 0x0000ff);
+                        this.scene.add(connection);
+                        this.connections.push(connection);
+                    });
+                    
+                    // Database
+                    const database = this.createDatabase('RDS Database', { x: 0, y: 1, z: -8 });
+                    this.scene.add(database);
+                    this.shapes.push(database);
+                    
+                    [webServer1, webServer2, webServer3].forEach(server => {
+                        const connection = this.createConnection(server, database, 0xff0000);
+                        this.scene.add(connection);
+                        this.connections.push(connection);
+                    });
+                    
+                } else if (templateType === 'database') {
+                    // Main Database
+                    const mainDB = this.createDatabase('Main Database', { x: 0, y: 1, z: 0 });
+                    this.scene.add(mainDB);
+                    this.shapes.push(mainDB);
+                    
+                    // Read Replicas
+                    const readReplica1 = this.createDatabase('Read Replica 1', { x: -4, y: 1, z: -4 });
+                    const readReplica2 = this.createDatabase('Read Replica 2', { x: 4, y: 1, z: -4 });
+                    
+                    [readReplica1, readReplica2].forEach(replica => {
+                        this.scene.add(replica);
+                        this.shapes.push(replica);
+                        
+                        const connection = this.createConnection(mainDB, replica, 0x0000ff);
+                        this.scene.add(connection);
+                        this.connections.push(connection);
+                    });
+                    
+                    // Cache
+                    const cache = this.createCache('Redis Cache', { x: 0, y: 1, z: 4 });
+                    this.scene.add(cache);
+                    this.shapes.push(cache);
+                    
+                    const cacheConnection = this.createConnection(cache, mainDB, 0xff00ff);
+                    this.scene.add(cacheConnection);
+                    this.connections.push(cacheConnection);
+                }
+                
+                this.updateShapeCount();
+            }
+            
+            clearScene() {
+                // Remove all shapes
+                this.shapes.forEach(shape => {
+                    this.scene.remove(shape);
+                });
+                this.shapes = [];
+                
+                // Remove all connections
+                this.connections.forEach(connection => {
+                    this.scene.remove(connection);
+                });
+                this.connections = [];
+                
+                this.selectedObject = null;
+                this.connectionStart = null;
+                this.shapeCounter = 0;
+                
+                this.updateShapeCount();
+                document.getElementById('shape-info').textContent = 'None selected';
+            }
+            
+            updateShapeCount() {
+                document.getElementById('model-count').textContent = `Shapes: ${this.shapes.length}`;
+            }
+            
+            onWindowResize() {
+                const canvasContainer = document.getElementById('canvas-container');
+                this.camera.aspect = canvasContainer.clientWidth / canvasContainer.clientHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+            }
+            
+            start() {
+                document.getElementById('loading-screen').classList.add('hidden');
+                document.getElementById('main-container').classList.remove('hidden');
+                this.isRunning = true;
+                this.animate();
+                console.log('3D System Design Application started');
+            }
+            
+            animate(currentTime = 0) {
+                if (!this.isRunning) return;
+                
+                requestAnimationFrame(this.animate);
+                
+                // Update FPS
+                this.frameCount++;
+                if (currentTime - this.fpsUpdateTime >= 1000) {
+                    const fps = Math.round((this.frameCount * 1000) / (currentTime - this.fpsUpdateTime));
+                    document.getElementById('fps-counter').textContent = `FPS: ${fps}`;
+                    this.frameCount = 0;
+                    this.fpsUpdateTime = currentTime;
+                }
+                
+                // Update controls
+                if (this.controls) {
+                    this.controls.update();
+                }
+                
+                // Render scene
+                if (this.renderer && this.scene && this.camera) {
+                    this.renderer.render(this.scene, this.camera);
+                }
+            }
+        }
+        
+        // Initialize application when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            const app = new SystemDesignApp();
+            app.init();
+            
+            // Global app reference for debugging
+            window.designApp = app;
+        });
+    </script>
+</body>
+</html>
